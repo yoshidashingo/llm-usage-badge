@@ -1,25 +1,27 @@
 import type { UsageAdapter, UsageSnapshot } from "./types";
 
-// UNVERIFIED: Issue #8 must validate these chatgpt.com internal API assumptions.
+// VERIFIED 2026-07-27: CodexBar documents the usage URL below.
+// UNVERIFIED: The usage response's inner field names remain provisional.
 const CODEX_API = {
   sessionUrl: "https://chatgpt.com/api/auth/session",
-  usageUrl: "https://chatgpt.com/backend-api/codex/usage",
+  usageUrl: "https://chatgpt.com/backend-api/wham/usage",
   schema: {
     accessToken: "accessToken",
-    rateLimits: "rate_limits",
+    rateLimit: "rate_limit",
     primary: {
-      field: "primary",
+      field: "primary_window",
       label: "5h",
-      windowMinutes: 5 * 60,
     },
     secondary: {
-      field: "secondary",
+      field: "secondary_window",
       label: "Week",
-      windowMinutes: 7 * 24 * 60,
     },
-    usedPercent: "used_percent",
-    resetsAt: "resets_at",
-    windowMinutes: "window_minutes",
+    usedPercent: [
+      "used_percent",
+      "usage_percent",
+      "utilization",
+    ],
+    resetsAt: ["resets_at", "reset_at", "resets_after"],
   },
 } as const;
 
@@ -69,44 +71,65 @@ function isoResetAt(value: unknown): string | undefined {
     return undefined;
   }
 
-  return Number.isFinite(timestamp)
-    ? new Date(timestamp).toISOString()
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime())
+    ? date.toISOString()
     : undefined;
+}
+
+function windowUsedPercentage(
+  value: Record<string, unknown>,
+): number | undefined {
+  for (const field of CODEX_API.schema.usedPercent) {
+    const usedPct = usedPercentage(value[field]);
+    if (usedPct !== undefined) {
+      return usedPct;
+    }
+  }
+
+  return undefined;
+}
+
+function windowResetAt(
+  value: Record<string, unknown>,
+): string | null | undefined {
+  let hasInvalidReset = false;
+
+  for (const field of CODEX_API.schema.resetsAt) {
+    const resetValue = value[field];
+    if (resetValue === undefined || resetValue === null) {
+      continue;
+    }
+
+    const resetAt = isoResetAt(resetValue);
+    if (resetAt !== undefined) {
+      return resetAt;
+    }
+    hasInvalidReset = true;
+  }
+
+  return hasInvalidReset ? null : undefined;
 }
 
 function normalizeWindow(
   value: unknown,
   label: UsageWindow["label"],
-  expectedWindowMinutes: number,
 ): UsageWindow | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
 
-  const usedPct = usedPercentage(value[CODEX_API.schema.usedPercent]);
+  const usedPct = windowUsedPercentage(value);
   if (usedPct === undefined) {
     return undefined;
   }
 
-  const windowMinutes = value[CODEX_API.schema.windowMinutes];
-  if (
-    windowMinutes !== undefined &&
-    (typeof windowMinutes !== "number" ||
-      !Number.isFinite(windowMinutes) ||
-      windowMinutes !== expectedWindowMinutes)
-  ) {
-    return undefined;
-  }
-
-  const resetValue = value[CODEX_API.schema.resetsAt];
-  if (resetValue === undefined || resetValue === null) {
+  const resetAt = windowResetAt(value);
+  if (resetAt === undefined) {
     return { label, usedPct };
   }
 
-  const resetAt = isoResetAt(resetValue);
-  return resetAt === undefined
-    ? undefined
-    : { label, usedPct, resetAt };
+  return resetAt === null ? undefined : { label, usedPct, resetAt };
 }
 
 function normalizeUsage(value: unknown): UsageWindow[] | undefined {
@@ -114,20 +137,18 @@ function normalizeUsage(value: unknown): UsageWindow[] | undefined {
     return undefined;
   }
 
-  const rateLimits = value[CODEX_API.schema.rateLimits];
-  if (!isRecord(rateLimits)) {
+  const rateLimit = value[CODEX_API.schema.rateLimit];
+  if (!isRecord(rateLimit)) {
     return undefined;
   }
 
   const primary = normalizeWindow(
-    rateLimits[CODEX_API.schema.primary.field],
+    rateLimit[CODEX_API.schema.primary.field],
     CODEX_API.schema.primary.label,
-    CODEX_API.schema.primary.windowMinutes,
   );
   const secondary = normalizeWindow(
-    rateLimits[CODEX_API.schema.secondary.field],
+    rateLimit[CODEX_API.schema.secondary.field],
     CODEX_API.schema.secondary.label,
-    CODEX_API.schema.secondary.windowMinutes,
   );
 
   return primary === undefined || secondary === undefined

@@ -4,7 +4,7 @@ import healthyUsage from "./fixtures/codex-usage-healthy.json";
 import schemaMismatchUsage from "./fixtures/codex-usage-schema-mismatch.json";
 
 const SESSION_URL = "https://chatgpt.com/api/auth/session";
-const USAGE_URL = "https://chatgpt.com/backend-api/codex/usage";
+const USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const ACCESS_TOKEN = "test-access-token";
 
 type FetchCall = {

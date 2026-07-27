@@ -5,10 +5,10 @@ import schemaMismatchUsage from "./fixtures/claude-usage-schema-mismatch.json";
 
 const ORGANIZATIONS_URL = "https://claude.ai/api/organizations";
 const USAGE_URL =
-  "https://claude.ai/api/organizations/org-active/usage";
-const ACTIVE_ORGANIZATION = [
-  { uuid: "org-inactive", active: false },
-  { uuid: "org-active", active: true },
+  "https://claude.ai/api/organizations/org-first/usage";
+const ORGANIZATIONS = [
+  { uuid: "org-first" },
+  { uuid: "org-second" },
 ];
 
 type FetchCall = {
@@ -46,14 +46,14 @@ describe("claudeAdapter", () => {
     });
   });
 
-  it("normalizes healthy 5-hour and weekly usage", async () => {
+  it("uses the first organization and normalizes healthy usage", async () => {
     const calls: FetchCall[] = [];
 
     installFetch(async (input, init) => {
       calls.push({ input, init });
 
       if (String(input) === ORGANIZATIONS_URL) {
-        return jsonResponse(ACTIVE_ORGANIZATION);
+        return jsonResponse(ORGANIZATIONS);
       }
       if (String(input) === USAGE_URL) {
         return jsonResponse(healthyUsage);
@@ -96,7 +96,7 @@ describe("claudeAdapter", () => {
   it("returns unauthenticated for a 401 response", async () => {
     installFetch(async (input) => {
       if (String(input) === ORGANIZATIONS_URL) {
-        return jsonResponse(ACTIVE_ORGANIZATION);
+        return jsonResponse(ORGANIZATIONS);
       }
       return new Response(null, { status: 401 });
     });
@@ -143,11 +143,42 @@ describe("claudeAdapter", () => {
     expect(fetchCount).toBe(1);
   });
 
-  it("returns error when no organization is explicitly active", async () => {
+  it("falls back to the first organization's id", async () => {
     const calls: string[] = [];
     installFetch(async (input) => {
       calls.push(String(input));
-      return jsonResponse([{ uuid: "org-without-active-marker" }]);
+
+      if (String(input) === ORGANIZATIONS_URL) {
+        return jsonResponse([
+          { uuid: " ", id: "org-by-id" },
+          { uuid: "org-second" },
+        ]);
+      }
+      if (
+        String(input) ===
+        "https://claude.ai/api/organizations/org-by-id/usage"
+      ) {
+        return jsonResponse(healthyUsage);
+      }
+
+      throw new Error(`Unexpected URL: ${String(input)}`);
+    });
+
+    await expect(claudeAdapter.fetchUsage()).resolves.toMatchObject({
+      provider: "claude",
+      status: "ok",
+    });
+    expect(calls).toEqual([
+      ORGANIZATIONS_URL,
+      "https://claude.ai/api/organizations/org-by-id/usage",
+    ]);
+  });
+
+  it("returns error when no organization has a usable identifier", async () => {
+    const calls: string[] = [];
+    installFetch(async (input) => {
+      calls.push(String(input));
+      return jsonResponse([null, {}, { uuid: " ", id: "" }]);
     });
 
     await expect(claudeAdapter.fetchUsage()).resolves.toMatchObject({
@@ -161,7 +192,7 @@ describe("claudeAdapter", () => {
   it("returns error for a schema-mismatch response", async () => {
     installFetch(async (input) =>
       String(input) === ORGANIZATIONS_URL
-        ? jsonResponse(ACTIVE_ORGANIZATION)
+        ? jsonResponse(ORGANIZATIONS)
         : jsonResponse(schemaMismatchUsage),
     );
 

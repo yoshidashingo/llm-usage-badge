@@ -1,12 +1,10 @@
 {
-  "rate_limits": {
-    "primary": {
-      "consumed": 0.42,
-      "window_minutes": 300
+  "rate_limit": {
+    "primary_window": {
+      "consumed": 0.42
     },
-    "weekly": {
-      "used_percent": 73.2,
-      "window_minutes": 10080
+    "secondary_window": {
+      "usage_percent": 73.2
     }
   }
 }

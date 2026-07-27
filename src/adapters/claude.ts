@@ -34,14 +34,14 @@ function organizationUuid(value: unknown): string | undefined {
       continue;
     }
 
-    const isActive =
-      organization.active === true || organization.is_active === true;
-    if (
-      isActive &&
-      typeof organization.uuid === "string" &&
-      organization.uuid.trim().length > 0
-    ) {
-      return organization.uuid;
+    for (const field of ["uuid", "id"] as const) {
+      const identifier = organization[field];
+      if (
+        typeof identifier === "string" &&
+        identifier.trim().length > 0
+      ) {
+        return identifier;
+      }
     }
   }
 

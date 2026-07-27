@@ -6,9 +6,9 @@
 
 | プロバイダ | 仮定エンドポイント | 認証 | 状態 |
 |---|---|---|---|
-| Claude | `GET https://claude.ai/api/organizations` → `GET /api/organizations/{uuid}/usage` | Cookie | 未検証 |
-| Codex | `GET https://chatgpt.com/api/auth/session` → `GET https://chatgpt.com/backend-api/codex/usage` (Bearer) | Cookie + accessToken | 未検証 |
-| Grok | `POST https://grok.com/rest/rate-limits` body `{"requestKind":"DEFAULT","modelName":"grok-4"}` | Cookie | 未検証 |
+| Claude | `GET https://claude.ai/api/organizations` → `GET /api/organizations/{uuid}/usage` | Cookie | OSS実装で確認 (2026-07-27) |
+| Codex | `GET https://chatgpt.com/backend-api/wham/usage` (Bearer) | Cookie + accessToken | URL確認済み・内部スキーマ暫定 (2026-07-27) |
+| Grok | `POST https://grok.com/rest/rate-limits` body `{"requestKind":"DEFAULT","modelName":"grok-4"}` | Cookie | コミュニティ実装で確認 (2026-07-27)・modelName要確認 |
 
 想定レスポンス形はアダプタのフィクスチャ(`tests/fixtures/*.json`)を参照。
 

@@ -1,6 +1,7 @@
 import type { UsageAdapter, UsageSnapshot } from "./types";
 
-// UNVERIFIED: Issue #8 must validate these grok.com internal API assumptions.
+// COMMUNITY-VERIFIED (Greasy Fork Grok+): endpoint, body, and response shape.
+// UNVERIFIED: modelName may need adjustment ("grok-3" seen; we send "grok-4").
 const GROK_API = {
   rateLimitsUrl: "https://grok.com/rest/rate-limits",
   request: {
